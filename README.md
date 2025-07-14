@@ -1,36 +1,16 @@
-# Copypaste
+Take a backup of liq-sdk-scripted-api-ant*.jar file.
+D:\LoanIQ\server\sdk-post\
+D:\LoanIQ\client\sdk-post\
 
-#!/bin/bash
+Replace the latest jar file into below folders.
+D:\LoanIQ\server\sdk-post\
+D:\LoanIQ\client\sdk-post\
 
-# Define source and destination directories
-SRC_CLIENT="D:/loaniq/client/sdk-core/scbscripts/scriptedAPI"
-SRC_SERVER="D:/loaniq/server/scripts/scriptedAPI"
+Rollback steps: (if required)
+If the deployment goes wrong then please rollback to the previous state.
+•	51889-loaniq-sdk-generic  (scripted-api folder) Below change is a one-time change only and not required for subsequent releases.
 
-DEST_CLIENT="D:/loaniq/client/sdk-core/scbscripts/scriptedAPI"
-DEST_SERVER="D:/loaniq/server/scripts/scriptedAPI"
-
-# Define backup directories
-BACKUP_DIR="D:/loaniq/backup_$(date +%Y%m%d_%H%M%S)"
-BACKUP_CLIENT="$BACKUP_DIR/client"
-BACKUP_SERVER="$BACKUP_DIR/server"
-
-# Create backup directories
-mkdir -p "$BACKUP_CLIENT"
-mkdir -p "$BACKUP_SERVER"
-
-echo "Backing up current files..."
-cp -r "$DEST_CLIENT"/* "$BACKUP_CLIENT"/
-cp -r "$DEST_SERVER"/* "$BACKUP_SERVER"/
-
-echo "Replacing with latest files..."
-cp -r "$SRC_CLIENT"/* "$DEST_CLIENT"/
-cp -r "$SRC_SERVER"/* "$DEST_SERVER"/
-
-echo "Deployment completed successfully."
-echo "Backup stored at: $BACKUP_DIR"
-
-# Rollback instructions
-echo ""
-echo "To rollback, run the following commands:"
-echo "cp -r \"$BACKUP_CLIENT\"/* \"$DEST_CLIENT\"/"
-echo "cp -r \"$BACKUP_SERVER\"/* \"$DEST_SERVER\"/"
+1) Find the attached tomcat.ini file 
+2)	Go to D:\LoanIQ\server folder of LoanIQ.
+3	)Take a backup of tomcat.ini file.
+4)	Replace the attached tomcat.ini file.
