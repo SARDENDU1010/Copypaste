@@ -1,0 +1,40 @@
+# === Hardcoded Paths ===
+$clientPath = "D:\Test1\client\sdk-core\STBScripts\ScriptedAPI"
+$serverPath = "D:\Test1\server\Scripts\ScriptedAPI"
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$backupPath = "D:\Test1\backup_$timestamp"
+$downloadPath = "D:\Test1\artifactory_file"
+$tarGzFile = "$downloadPath\latest.tar.gz"
+$tarFile = "$downloadPath\latest.tar"
+$sevenZipCmd = "7z"
+
+# === Artifactory Config ===
+$artifactoryUrl = "https://your-artifactory.example.com/artifactory/generic-path/latest.tar.gz"
+# === Step 1: Create Backup Folders ===
+New-Item -ItemType Directory -Force -Path $backupPath | Out-Null
+Write-Host "Backing up $clientPath..."
+Copy-Item -Path "$clientPath\*" -Destination "$backupPath\client" -Recurse -Force
+Write-Host "Backing up $serverPath..."
+Copy-Item -Path "$serverPath\*" -Destination "$backupPath\server" -Recurse -Force
+
+# === Step 2: Download from Artifactory ===
+if (Test-Path $downloadPath) {
+    Remove-Item $downloadPath -Recurse -Force
+}
+New-Item -ItemType Directory -Path $downloadPath | Out-Null
+Write-Host "Downloading file from Artifactory..."
+Invoke-WebRequest -Uri $artifactoryUrl -OutFile $tarGzFile -Headers $headers -UseBasicParsing
+
+# === Step 3: Extract the .tar.gz using 7-Zip ===
+Write-Host "Extracting .tar.gz to .tar..."
+& $sevenZipCmd x $tarGzFile -o"$downloadPath" -aoa
+
+Write-Host "Extracting .tar to files..."
+& $sevenZipCmd x $tarFile -o"$downloadPath" -aoa
+
+# === Step 4: Copy Extracted Files to Targets ===
+Write-Host "Copying extracted files to client and server paths..."
+Copy-Item -Path "$downloadPath\*" -Destination $clientPath -Recurse -Force
+Copy-Item -Path "$downloadPath\*" -Destination $serverPath -Recurse -Force
+
+Write-Host "`n✅ Done. Backup created at $backupPath"
