@@ -1,0 +1,62 @@
+
+# ======================== CONFIGURATION ========================
+$clientPath = "D:\Test1\client\sdk-core\STBScripts\ScriptedAPI"
+$serverPath = "D:\Test1\server\Scripts\ScriptedAPI"
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$backupRoot = "D:\Test1\backup_$timestamp"
+$downloadDir = "D:\Test1\artifactory_file"
+$archivePath = Join-Path $downloadDir "latest.tar.gz"
+
+# Replace with your actual Artifactory URL
+$artifactoryUrl = "https://your-artifactory.example.com/artifactory/generic-path/latest.tar.gz"
+# Optional authentication (comment out if not needed)
+$headers = @{ "Authorization" = "Bearer YOUR_ARTIFACTORY_TOKEN" }
+
+# ======================== STEP 1: CREATE BACKUP ========================
+function Backup-Folder {
+    param (
+        [string]$source,
+        [string]$targetRoot
+    )
+    $target = Join-Path -Path $targetRoot -ChildPath ($source -replace "D:\\Test1\\", "")
+    Write-Host "Backing up: $source → $target"
+    New-Item -ItemType Directory -Path $target -Force | Out-Null
+    Copy-Item -Path "$source\*" -Destination $target -Recurse -Force
+}
+
+Write-Host "`n=== Creating Backup Directory: $backupRoot ==="
+New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
+Backup-Folder -source $clientPath -targetRoot $backupRoot
+Backup-Folder -source $serverPath -targetRoot $backupRoot
+
+# ======================== STEP 2: DOWNLOAD LATEST FILES ========================
+Write-Host "`n=== Downloading Latest .tar.gz from Artifactory ==="
+if (Test-Path $downloadDir) { Remove-Item $downloadDir -Recurse -Force }
+New-Item -ItemType Directory -Path $downloadDir | Out-Null
+
+try {
+    Invoke-WebRequest -Uri $artifactoryUrl -OutFile $archivePath -Headers $headers -UseBasicParsing
+    Write-Host "Downloaded latest.tar.gz to $archivePath"
+}
+catch {
+    Write-Error "Failed to download from Artifactory: $_"
+    exit 1
+}
+
+# ======================== STEP 3: EXTRACT .tar.gz FILE ========================
+Write-Host "`n=== Extracting .tar.gz Archive ==="
+# Ensure 7-Zip is installed and in PATH
+$sevenZipPath = "7z"
+$tarFilePath = "$downloadDir\latest.tar"
+
+# Extract .tar.gz → .tar
+& $sevenZipPath x $archivePath -o"$downloadDir" -aoa
+# Extract .tar → files
+& $sevenZipPath x $tarFilePath -o"$downloadDir" -aoa
+
+# ======================== STEP 4: COPY TO DESTINATIONS ========================
+Write-Host "`n=== Replacing Files in Target Folders ==="
+Copy-Item -Path "$downloadDir\*" -Destination $clientPath -Recurse -Force
+Copy-Item -Path "$downloadDir\*" -Destination $serverPath -Recurse -Force
+
+Write-Host "`n✅ Deployment completed successfully. Backup is stored at: $backupRoot"
