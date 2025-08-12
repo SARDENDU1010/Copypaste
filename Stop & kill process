@@ -1,0 +1,15 @@
+# Target process name and user
+$targetProcess = "conhost.exe"
+$targetUser = "svc.xyz.001.dev"
+
+# Get processes with matching name
+$processes = Get-WmiObject Win32_Process -Filter "Name='$targetProcess'"
+
+foreach ($proc in $processes) {
+    # Get process owner (domain\username)
+    $ownerInfo = $proc.GetOwner()
+    if ($ownerInfo.User -eq $targetUser) {
+        Write-Host "Stopping $targetProcess (PID: $($proc.ProcessId)) for user $($ownerInfo.User)" -ForegroundColor Yellow
+        Stop-Process -Id $proc.ProcessId -Force
+    }
+}
