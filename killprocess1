@@ -1,0 +1,100 @@
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$ServiceName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$TargetUser
+)
+
+function Get-ChildProcesses {
+    param([int]$ParentPid)
+
+    $all = Get-CimInstance Win32_Process
+    $result = @()
+    $queue = New-Object System.Collections.Generic.Queue[int]
+    $queue.Enqueue($ParentPid)
+
+    while ($queue.Count -gt 0) {
+        $pid = $queue.Dequeue()
+        $children = $all | Where-Object { $_.ParentProcessId -eq $pid }
+
+        foreach ($c in $children) {
+            $result += $c
+            $queue.Enqueue([int]$c.ProcessId)
+        }
+    }
+
+    return $result
+}
+
+function Get-ProcessOwner {
+    param([int]$ProcessId)
+
+    try {
+        $proc = Get-WmiObject Win32_Process -Filter "ProcessId=$ProcessId"
+        $owner = $proc.GetOwner()
+        if ($owner.User) {
+            return "$($owner.Domain)\$($owner.User)"
+        }
+    }
+    catch {
+        return $null
+    }
+}
+
+# Step 1: Get the service info
+$svc = Get-CimInstance Win32_Service -Filter "Name='$ServiceName'"
+
+if (-not $svc) {
+    Write-Error "Service '$ServiceName' not found."
+    exit 1
+}
+
+$parentPid = $svc.ProcessId
+
+if (-not $parentPid -or $parentPid -eq 0) {
+    Write-Warning "Service '$ServiceName' does not have a direct PID (may be hosted in a shared svchost)."
+    exit 1
+}
+
+Write-Host "Found service: $($svc.Name) (PID: $parentPid)" -ForegroundColor Cyan
+
+# Step 2: Find all child processes
+$children = Get-ChildProcesses -ParentPid $parentPid
+
+if (-not $children) {
+    Write-Host "No child processes found for service '$ServiceName'." -ForegroundColor Yellow
+    exit 0
+}
+
+# Step 3: Filter processes by owner
+$filteredChildren = foreach ($child in $children) {
+    $owner = Get-ProcessOwner -ProcessId $child.ProcessId
+    if ($owner -and $owner -like "*\$TargetUser") {
+        [PSCustomObject]@{
+            ProcessId   = $child.ProcessId
+            Name        = $child.Name
+            CommandLine = $child.CommandLine
+            Owner       = $owner
+        }
+    }
+}
+
+if (-not $filteredChildren) {
+    Write-Host "No processes under user '$TargetUser' found." -ForegroundColor Yellow
+    exit 0
+}
+
+Write-Host "Found $($filteredChildren.Count) processes under user '$TargetUser':" -ForegroundColor Green
+$filteredChildren | Format-Table -AutoSize
+
+# Step 4: Kill filtered processes
+foreach ($proc in $filteredChildren) {
+    try {
+        Write-Host "Killing PID $($proc.ProcessId) - $($proc.Name) (Owner: $($proc.Owner))" -ForegroundColor Red
+        #Stop-Process -Id $proc.ProcessId -Force
+    }
+    catch {
+        Write-Warning "Failed to kill PID $($proc.ProcessId): $_"
+    }
+}
