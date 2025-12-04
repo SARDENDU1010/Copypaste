@@ -1,0 +1,9 @@
+label_values(
+  {job!=""} 
+  and (
+      windows_os_info{job=~".*", app="$App"} 
+      or
+      node_uname_info{job=~".*", app="$App"}
+  ),
+  job
+)
