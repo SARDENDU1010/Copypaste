@@ -12,3 +12,5 @@
   }
 ) * 100
 
+
+https://us06web.zoom.us/meeting/register/bCGJKDrsQ-a2u-_gsmhWjw#/registration
